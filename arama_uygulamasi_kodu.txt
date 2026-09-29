@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Üye Arama Paneli</title>
+<style>
+  :root{
+    --blue:#2563eb; --green:#16a34a; --yellow:#eab308; --red:#dc2626;
+    --brand:#c0231f; --ink:#1f2328; --dim:#6b7280; --line:#e5e7eb; --bg:#f4f5f7;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;background:var(--bg);color:var(--ink);font-size:15px}
+  .hidden{display:none!important}
+
+  .login{max-width:340px;margin:16vh auto 0;background:#fff;border:1px solid var(--line);border-radius:12px;padding:22px;text-align:center}
+  .login h1{font-size:18px;margin:0 0 4px;color:var(--brand)}
+  .login p{margin:0 0 14px;color:var(--dim);font-size:13px}
+  .login input{width:100%;padding:11px;border:1px solid var(--line);border-radius:8px;font-size:16px;margin-bottom:10px}
+  .login button{width:100%;padding:11px;border:0;border-radius:8px;background:var(--brand);color:#fff;font-size:15px;font-weight:600}
+  .login .err{color:var(--red);font-size:13px;min-height:18px;margin-top:8px;word-break:break-word;text-align:left}
+
+  .top{position:sticky;top:0;z-index:20;background:#fff;box-shadow:0 1px 0 var(--line)}
+  header{background:var(--brand);color:#fff;padding:9px 12px;display:flex;align-items:center;gap:8px}
+  header h1{font-size:15px;margin:0;flex:1;white-space:nowrap}
+  header input{width:130px;padding:6px 8px;border-radius:6px;border:0;font-size:13px}
+  header button{border:0;background:rgba(255,255,255,.18);color:#fff;border-radius:6px;padding:6px 10px;font-size:14px}
+  .controls{padding:10px 12px;display:grid;gap:8px}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  select,.search{width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;background:#fff;font-size:14px;font-family:inherit}
+  select:disabled{background:#f3f4f6;color:#9ca3af}
+  .chips{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px}
+  .chip{flex:0 0 auto;border:1px solid var(--line);background:#fff;border-radius:999px;padding:6px 11px;font-size:13px;display:flex;align-items:center;gap:6px;font-family:inherit}
+  .chip b{font-weight:600}
+  .chip.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+
+  .dot{display:inline-block;width:10px;height:10px;border-radius:50%;flex:0 0 auto}
+  .dot.big{width:16px;height:16px;margin-top:2px}
+
+  #list{padding:10px 12px 80px;display:grid;gap:8px;max-width:760px;margin:0 auto}
+  .card{background:#fff;border:1px solid var(--line);border-left:5px solid var(--blue);border-radius:10px;overflow:hidden}
+  .card .head{display:flex;gap:10px;align-items:flex-start;padding:11px 12px;cursor:pointer}
+  .who{flex:1;min-width:0}
+  .nm{font-weight:600;font-size:15px}
+  .sub{color:var(--dim);font-size:13px;margin-top:1px}
+  .meta{font-size:12px;color:var(--dim);margin-top:3px}
+  .chev{color:var(--dim);font-size:11px;padding-top:4px}
+  .notep{padding:0 12px 10px 38px;font-size:13px;color:#4b5563;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .edit{border-top:1px solid var(--line);padding:12px;display:grid;gap:10px;background:#fafafa}
+  .callbtn{display:block;text-align:center;background:var(--green);color:#fff;text-decoration:none;padding:12px;border-radius:8px;font-weight:600}
+  .sbtns{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .sb{display:flex;align-items:center;gap:7px;padding:10px;border:2px solid var(--line);background:#fff;border-radius:8px;font-size:13px;text-align:left;font-family:inherit}
+  .sb.on{border-color:var(--c);background:#fff;box-shadow:inset 0 0 0 1px var(--c);font-weight:600}
+  .note{width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;font-size:14px;font-family:inherit;resize:vertical}
+  .save-row{display:flex;align-items:center;gap:10px}
+  .save{background:var(--brand);color:#fff;border:0;border-radius:8px;padding:11px 20px;font-weight:600;font-size:14px}
+  .save:disabled{opacity:.6}
+  .last{font-size:12px;color:var(--dim)}
+  .empty{text-align:center;color:var(--dim);padding:40px 10px}
+  .more{display:block;margin:6px auto 0;padding:10px 18px;border:1px solid var(--line);background:#fff;border-radius:8px;font-size:14px}
+  .toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:#111827;color:#fff;padding:10px 16px;border-radius:8px;font-size:14px;z-index:50;max-width:90%}
+</style>
+</head>
+<body>
+
+<!-- PIN GİRİŞİ -->
+<div id="login" class="login hidden">
+  <h1>Üye Arama Paneli</h1>
+  <p>Devam etmek için size verilen PIN'i girin.</p>
+  <input id="pinInput" type="password" autocomplete="off" placeholder="PIN">
+  <button id="pinBtn">Giriş</button>
+  <div id="pinErr" class="err"></div>
+</div>
+
+<!-- UYGULAMA -->
+<div id="app" class="hidden">
+  <div class="top">
+    <header>
+      <h1>Üye Arama</h1>
+      <input id="caller" placeholder="Adınız (arayan)" maxlength="40">
+      <button id="refresh" title="Yenile">⟳</button>
+    </header>
+    <div class="controls">
+      <div class="two">
+        <select id="ilce"></select>
+        <select id="mahalle" disabled><option value="">Mahalle</option></select>
+      </div>
+      <input id="q" class="search" type="search" placeholder="İsim veya telefon ara…" autocomplete="off">
+      <div id="chips" class="chips"></div>
+    </div>
+  </div>
+  <div id="list"></div>
+  <button id="more" class="more hidden"></button>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+
+<script>
+(function(){
+  'use strict';
+
+  /* ===================== AYAR: Apps Script API adresiniz ===================== */
+  var API_URL = 'https://script.google.com/macros/s/AKfycbx6CfFYTu76IFsdi5-nCdXAUEFSNz9NcTAuYQfNNqgEVpLM5RhPzobDXNPjyzXUsm0R/exec';
+  /* ============================================================================ */
+
+  var LS = {
+    get: function(k){ try{ return localStorage.getItem(k) || ''; }catch(e){ return ''; } },
+    set: function(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
+  };
+
+  var STATUS = {
+    'Yeni':    { label:'Aranmadı',               btn:'Aranmadı (sıfırla)',   color:'#2563eb' },
+    'Arandı':  { label:'Arandı',                 btn:'Arandı',               color:'#16a34a' },
+    'Tekrar':  { label:'Tekrar aranacak',        btn:'Tekrar aranacak',      color:'#eab308' },
+    'Olumsuz': { label:'Ulaşılamadı / Olumsuz',  btn:'Ulaşılamadı / Olumsuz',color:'#dc2626' }
+  };
+  var CHIP_ORDER = ['Yeni','Arandı','Tekrar','Olumsuz'];
+  var BTN_ORDER  = ['Arandı','Tekrar','Olumsuz','Yeni'];
+  var PAGE = 50;
+
+  function $(id){ return document.getElementById(id); }
+  function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+
+  var pin = LS.get('arama_pin');
+  var caller = LS.get('arama_kisi');
+  var summary = [];
+  var people = [];
+  var curIlce = '';
+  var fMah = '';
+  var fStatus = 'ALL';
+  var q = '';
+  var shown = PAGE;
+  var openId = null;
+  var draft = null;
+
+  /* ---------- sunucu çağrısı (fetch — Apps Script JSON API) ---------- */
+  function call(action){
+    var extra = Array.prototype.slice.call(arguments, 1);
+    var params = new URLSearchParams();
+    params.set('action', action);
+    params.set('pin', pin);
+    // getPeople(ilce) / updateRecord(id,durum,not,arayan) sırasına göre adlandır
+    var names = {
+      checkPin: [],
+      summary: [],
+      people: ['ilce'],
+      update: ['id','durum','not','arayan']
+    }[action] || [];
+    names.forEach(function(name, i){ params.set(name, extra[i] == null ? '' : extra[i]); });
+
+    var url = API_URL + '?' + params.toString();
+    return fetch(url, { method: 'GET' })
+      .then(function(res){
+        if (!res.ok) throw new Error('Sunucu HTTP ' + res.status + ' döndürdü');
+        return res.json().catch(function(){ throw new Error('Sunucudan beklenmeyen yanıt geldi (JSON değil)'); });
+      })
+      .then(function(j){
+        if (!j || j.ok !== true) throw new Error((j && j.error) || 'Sunucu hatası');
+        return j.data;
+      })
+      .catch(function(err){
+        if (err instanceof TypeError){
+          // fetch ağ/CORS seviyesinde başarısız oldu — gövdeye hiç erişilemedi
+          throw new Error('Sunucuya ulaşılamadı. İnternet bağlantınızı kontrol edin, sorun sürerse API adresini kontrol edin.');
+        }
+        throw err;
+      });
+  }
+
+  var toastTimer = null;
+  function toast(t){
+    var el = $('toast'); el.textContent = t; el.classList.remove('hidden');
+    clearTimeout(toastTimer); toastTimer = setTimeout(function(){ el.classList.add('hidden'); }, 2600);
+  }
+
+  /* ---------- telefon ---------- */
+  function digits(t){
+    var d = String(t || '').replace(/\D/g,'');
+    if (d.length === 12 && d.indexOf('90') === 0) d = d.slice(2);
+    if (d.length === 10) d = '0' + d;
+    return d;
+  }
+  function fmtPhone(t){
+    var d = digits(t);
+    if (d.length !== 11) return String(t || '');
+    return d.slice(0,4)+' '+d.slice(4,7)+' '+d.slice(7,9)+' '+d.slice(9);
+  }
+
+  /* ---------- giriş ---------- */
+  function showLogin(err){
+    $('app').classList.add('hidden'); $('login').classList.remove('hidden');
+    $('pinErr').textContent = err || '';
+    $('pinInput').value = ''; $('pinInput').focus();
+  }
+  async function doLogin(){
+    var v = $('pinInput').value.trim();
+    if (!v) return;
+    pin = v; $('pinBtn').disabled = true; $('pinBtn').textContent = 'Kontrol ediliyor…';
+    try{
+      var d = await call('checkPin');
+      if (d && d.valid){ LS.set('arama_pin', pin); $('login').classList.add('hidden'); await boot(); }
+      else { pin = ''; showLogin('PIN hatalı'); }
+    }catch(e){ pin = ''; showLogin(e.message); }
+    $('pinBtn').disabled = false; $('pinBtn').textContent = 'Giriş';
+  }
+  $('pinBtn').addEventListener('click', doLogin);
+  $('pinInput').addEventListener('keydown', function(e){ if (e.key === 'Enter') doLogin(); });
+
+  async function boot(){
+    if (!pin){ showLogin(); return; }
+    $('login').classList.add('hidden'); $('app').classList.remove('hidden');
+    $('caller').value = caller;
+    try{
+      await loadSummary();
+      var last = LS.get('arama_ilce');
+      if (last && summary.some(function(s){ return s.ilce === last; })){
+        $('ilce').value = last; await loadPeople(last);
+      } else { renderAll(); }
+    }catch(e){
+      if (/PIN/.test(e.message)){ LS.set('arama_pin',''); pin=''; showLogin(e.message); }
+      else { $('list').innerHTML = '<div class="empty">Yüklenemedi: ' + esc(e.message) + '</div>'; }
+    }
+  }
+
+  /* ---------- veri yükleme ---------- */
+  async function loadSummary(){
+    summary = await call('summary');
+    renderIlceSelect();
+  }
+  function renderIlceSelect(){
+    var sel = $('ilce');
+    sel.innerHTML = '<option value="">İlçe seçin…</option>' + summary.map(function(s){
+      var done = s.toplam - s['Yeni'];
+      return '<option value="'+esc(s.ilce)+'">'+esc(s.ilce)+' ('+s.toplam+') · '+done+' aranan</option>';
+    }).join('');
+    sel.value = curIlce || '';
+  }
+
+  async function loadPeople(ilce, keep){
+    curIlce = ilce; LS.set('arama_ilce', ilce);
+    openId = null; draft = null; shown = PAGE;
+    if (!keep){ fMah = ''; fStatus = 'ALL'; q = ''; $('q').value = ''; }
+    if (!ilce){ people = []; buildMahalle(); renderAll(); return; }
+    $('list').innerHTML = '<div class="empty">Yükleniyor…</div>';
+    try{
+      people = await call('people', ilce);
+    }catch(e){
+      $('list').innerHTML = '<div class="empty">Yüklenemedi: ' + esc(e.message) + '</div>'; return;
+    }
+    buildMahalle(); renderAll();
+  }
+
+  function buildMahalle(){
+    var sel = $('mahalle');
+    var counts = {}, none = 0;
+    people.forEach(function(p){ if (p.m) counts[p.m] = (counts[p.m]||0) + 1; else none++; });
+    var names = Object.keys(counts).sort(function(a,b){ return a.localeCompare(b,'tr'); });
+    if (!names.length){
+      sel.innerHTML = '<option value="">Mahalle bilgisi yok</option>';
+      sel.disabled = true; fMah = ''; return;
+    }
+    sel.disabled = false;
+    var html = '<option value="">Tüm mahalleler ('+people.length+')</option>' +
+      names.map(function(n){ return '<option value="'+esc(n)+'">'+esc(n)+' ('+counts[n]+')</option>'; }).join('');
+    if (none) html += '<option value="__none">Mahalle belirtilmemiş ('+none+')</option>';
+    sel.innerHTML = html;
+    if (fMah && !(fMah === '__none' ? none : counts[fMah])) fMah = '';
+    sel.value = fMah;
+  }
+
+  /* ---------- filtreleme ---------- */
+  function baseList(){
+    var tokens = q ? q.split(/\s+/).filter(Boolean) : [];
+    var qd = q.replace(/\D/g,'');
+    if (qd.indexOf('90') === 0 && qd.length > 4) qd = qd.slice(2);
+    return people.filter(function(p){
+      if (fMah === '__none'){ if (p.m) return false; }
+      else if (fMah && p.m !== fMah) return false;
+      if (tokens.length){
+        var hay = (p.a + ' ' + p.s).toLocaleLowerCase('tr');
+        var okName = tokens.every(function(t){ return hay.indexOf(t) >= 0; });
+        var okTel = qd.length >= 3 && digits(p.t).indexOf(qd) >= 0;
+        if (!okName && !okTel) return false;
+      }
+      return true;
+    });
+  }
+
+  /* ---------- çizim ---------- */
+  function renderAll(){ renderChips(); renderList(); }
+
+  function renderChips(){
+    var base = baseList();
+    var counts = { Yeni:0, 'Arandı':0, Tekrar:0, Olumsuz:0 };
+    base.forEach(function(p){ counts[p.d]++; });
+    var html = '<button class="chip'+(fStatus==='ALL'?' on':'')+'" data-s="ALL">Tümü <b>'+base.length+'</b></button>';
+    CHIP_ORDER.forEach(function(k){
+      html += '<button class="chip'+(fStatus===k?' on':'')+'" data-s="'+k+'"><i class="dot" style="background:'+STATUS[k].color+'"></i>'+
+              esc(STATUS[k].label)+' <b>'+counts[k]+'</b></button>';
+    });
+    $('chips').innerHTML = html;
+  }
+
+  function visible(){
+    return baseList().filter(function(p){ return fStatus === 'ALL' || p.d === fStatus; });
+  }
+
+  function cardHtml(p){
+    var st = STATUS[p.d], open = openId === p.id;
+    var meta = p.d === 'Yeni' ? '' :
+      '<div class="meta">'+esc(st.label)+(p.z?' · '+esc(p.z):'')+(p.k?' · '+esc(p.k):'')+'</div>';
+    var notep = (!open && p.n) ? '<div class="notep">'+esc(p.n)+'</div>' : '';
+    var edit = '';
+    if (open){
+      edit = '<div class="edit">' +
+        '<a class="callbtn" href="tel:'+esc(digits(p.t))+'" target="_top">📞 Ara · '+esc(fmtPhone(p.t))+'</a>' +
+        '<div class="sbtns">' + BTN_ORDER.map(function(k){
+          return '<button type="button" class="sb'+(draft.durum===k?' on':'')+'" data-d="'+k+'" style="--c:'+STATUS[k].color+'">'+
+                 '<i class="dot" style="background:'+STATUS[k].color+'"></i>'+esc(STATUS[k].btn)+'</button>';
+        }).join('') + '</div>' +
+        '<textarea class="note" rows="3" placeholder="Görüşme notu…">'+esc(draft.not)+'</textarea>' +
+        '<div class="save-row"><button type="button" class="save" data-act="save">Kaydet</button>' +
+        '<span class="last">'+(p.z ? 'Son arama: '+esc(p.z)+(p.k?' · '+esc(p.k):'') : 'Arama zamanı kayıtta otomatik yazılır')+'</span></div>' +
+        '</div>';
+    }
+    return '<div class="card" data-id="'+esc(p.id)+'" style="border-left-color:'+st.color+'">' +
+      '<div class="head" data-act="toggle">' +
+        '<span class="dot big" style="background:'+st.color+'"></span>' +
+        '<div class="who"><div class="nm">'+esc(p.a)+' '+esc(p.s)+'</div>' +
+        '<div class="sub">'+esc(fmtPhone(p.t))+(p.m?' · '+esc(p.m):'')+'</div>'+meta+'</div>' +
+        '<span class="chev">'+(open?'▲':'▼')+'</span>' +
+      '</div>' + notep + edit + '</div>';
+  }
+
+  function renderList(){
+    var list = $('list'), more = $('more');
+    if (!curIlce){
+      list.innerHTML = '<div class="empty">Başlamak için bir ilçe seçin.</div>'; more.classList.add('hidden'); return;
+    }
+    var vis = visible();
+    if (!vis.length){
+      list.innerHTML = '<div class="empty">Bu görünümde kimse yok.</div>'; more.classList.add('hidden'); return;
+    }
+    list.innerHTML = vis.slice(0, shown).map(cardHtml).join('');
+    if (vis.length > shown){
+      more.textContent = 'Daha fazla göster (' + (vis.length - shown) + ' kişi daha)';
+      more.classList.remove('hidden');
+    } else more.classList.add('hidden');
+  }
+
+  /* ---------- olaylar ---------- */
+  $('ilce').addEventListener('change', function(e){ loadPeople(e.target.value); });
+  $('mahalle').addEventListener('change', function(e){ fMah = e.target.value; shown = PAGE; openId = null; draft = null; renderAll(); });
+  $('chips').addEventListener('click', function(e){
+    var b = e.target.closest('.chip'); if (!b) return;
+    fStatus = b.dataset.s; shown = PAGE; openId = null; draft = null; renderAll();
+  });
+  var qTimer = null;
+  $('q').addEventListener('input', function(e){
+    clearTimeout(qTimer);
+    qTimer = setTimeout(function(){
+      q = e.target.value.trim().toLocaleLowerCase('tr'); shown = PAGE; openId = null; draft = null; renderAll();
+    }, 150);
+  });
+  $('more').addEventListener('click', function(){ shown += PAGE; renderList(); });
+  $('caller').addEventListener('input', function(e){ caller = e.target.value.trim(); LS.set('arama_kisi', caller); });
+  $('refresh').addEventListener('click', async function(){
+    try{ await loadSummary(); if (curIlce) await loadPeople(curIlce, true); toast('Yenilendi'); }
+    catch(e){ toast('Yenilenemedi: ' + e.message); }
+  });
+
+  $('list').addEventListener('click', function(e){
+    var card = e.target.closest('.card'); if (!card) return;
+    var id = card.dataset.id;
+    var sb = e.target.closest('.sb');
+    if (sb){
+      draft.durum = sb.dataset.d;
+      Array.prototype.forEach.call(card.querySelectorAll('.sb'), function(b){ b.classList.toggle('on', b === sb); });
+      return;
+    }
+    if (e.target.closest('[data-act="save"]')){ save(id); return; }
+    if (e.target.closest('.edit')) return;
+    if (e.target.closest('[data-act="toggle"]')) toggle(id);
+  });
+  $('list').addEventListener('input', function(e){
+    if (e.target.classList.contains('note') && draft) draft.not = e.target.value;
+  });
+
+  function toggle(id){
+    if (openId === id){ openId = null; draft = null; renderList(); return; }
+    var p = people.filter(function(x){ return x.id === id; })[0]; if (!p) return;
+    openId = id;
+    draft = { id: id, durum: p.d === 'Yeni' ? '' : p.d, not: p.n };
+    renderList();
+    var el = document.querySelector('.card[data-id="'+id+'"]');
+    if (el && el.scrollIntoView) el.scrollIntoView({ block:'nearest' });
+  }
+
+  function refreshSummaryFor(ilce){
+    var s = summary.filter(function(x){ return x.ilce === ilce; })[0]; if (!s) return;
+    s['Yeni'] = s['Arandı'] = s['Tekrar'] = s['Olumsuz'] = 0; s.toplam = people.length;
+    people.forEach(function(p){ s[p.d]++; });
+    renderIlceSelect();
+  }
+
+  async function save(id){
+    var p = people.filter(function(x){ return x.id === id; })[0]; if (!p || !draft) return;
+    if (!caller){ toast('Önce üstteki kutuya adınızı yazın'); $('caller').focus(); return; }
+    if (!draft.durum){ toast('Önce görüşme sonucunu seçin'); return; }
+    var btn = document.querySelector('.card[data-id="'+id+'"] .save');
+    if (btn){ btn.disabled = true; btn.textContent = 'Kaydediliyor…'; }
+    try{
+      var r = await call('update', id, draft.durum, draft.not, caller);
+      p.d = r.durum; p.n = r.not; p.z = r.zaman; p.k = r.arayan;
+      openId = null; draft = null;
+      refreshSummaryFor(curIlce); renderAll(); toast('Kaydedildi ✓');
+    }catch(e){
+      toast('Kaydedilemedi: ' + e.message);
+      if (btn){ btn.disabled = false; btn.textContent = 'Kaydet'; }
+    }
+  }
+
+  /* ---------- başlangıç ---------- */
+  (async function start(){
+    if (!API_URL || API_URL.indexOf('BURAYA') >= 0){
+      showLogin('Kod içinde API_URL ayarlanmamış.');
+      return;
+    }
+    if (pin){
+      $('login').classList.add('hidden');
+      try{ await boot(); }
+      catch(e){ pin=''; LS.set('arama_pin',''); showLogin(e.message); }
+    } else {
+      showLogin();
+    }
+  })();
+})();
+</script>
+</body>
+</html>
