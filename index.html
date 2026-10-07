@@ -6,7 +6,7 @@
 <title>Üye Arama Paneli</title>
 <style>
   :root{
-    --blue:#2563eb; --green:#16a34a; --yellow:#eab308; --red:#dc2626;
+    --blue:#2563eb; --green:#16a34a; --yellow:#eab308; --red:#dc2626; --orange:#f97316;
     --brand:#c0231f; --ink:#1f2328; --dim:#6b7280; --line:#e5e7eb; --bg:#f4f5f7;
   }
   *{box-sizing:border-box}
@@ -100,7 +100,7 @@
   'use strict';
 
   /* ===================== AYAR: Apps Script API adresiniz ===================== */
-  var API_URL = 'https://script.google.com/macros/s/AKfycbx6CfFYTu76IFsdi5-nCdXAUEFSNz9NcTAuYQfNNqgEVpLM5RhPzobDXNPjyzXUsm0R/exec';
+  var API_URL = 'https://script.google.com/macros/s/AKfycbx1ajTcCGuiHDyMN_kGCd9vueiEq1oV8QoNgqBN_DtPayIaxODMW6A-DqgltiVq0lgp/exec';
   /* ============================================================================ */
 
   var LS = {
@@ -112,10 +112,11 @@
     'Yeni':    { label:'Aranmadı',               btn:'Aranmadı (sıfırla)',   color:'#2563eb' },
     'Arandı':  { label:'Arandı',                 btn:'Arandı',               color:'#16a34a' },
     'Tekrar':  { label:'Tekrar aranacak',        btn:'Tekrar aranacak',      color:'#eab308' },
-    'Olumsuz': { label:'Ulaşılamadı / Olumsuz',  btn:'Ulaşılamadı / Olumsuz',color:'#dc2626' }
+    'Olumsuz': { label:'Ulaşılamadı / Olumsuz',  btn:'Ulaşılamadı / Olumsuz',color:'#dc2626' },
+    'Yüzyüze': { label:'Yüzyüze',                btn:'Yüzyüze görüşülecek',  color:'#f97316' }
   };
-  var CHIP_ORDER = ['Yeni','Arandı','Tekrar','Olumsuz'];
-  var BTN_ORDER  = ['Arandı','Tekrar','Olumsuz','Yeni'];
+  var CHIP_ORDER = ['Yeni','Arandı','Tekrar','Yüzyüze','Olumsuz'];
+  var BTN_ORDER  = ['Arandı','Tekrar','Yüzyüze','Olumsuz','Yeni'];
   var PAGE = 50;
 
   function $(id){ return document.getElementById(id); }
@@ -142,6 +143,7 @@
     // getPeople(ilce) / updateRecord(id,durum,not,arayan) sırasına göre adlandır
     var names = {
       checkPin: [],
+      login: [],
       summary: [],
       people: ['ilce'],
       update: ['id','durum','not','arayan']
@@ -196,29 +198,28 @@
     var v = $('pinInput').value.trim();
     if (!v) return;
     pin = v; $('pinBtn').disabled = true; $('pinBtn').textContent = 'Kontrol ediliyor…';
-    try{
-      var d = await call('checkPin');
-      if (d && d.valid){ LS.set('arama_pin', pin); $('login').classList.add('hidden'); await boot(); }
-      else { pin = ''; showLogin('PIN hatalı'); }
-    }catch(e){ pin = ''; showLogin(e.message); }
+    await boot();
     $('pinBtn').disabled = false; $('pinBtn').textContent = 'Giriş';
   }
   $('pinBtn').addEventListener('click', doLogin);
   $('pinInput').addEventListener('keydown', function(e){ if (e.key === 'Enter') doLogin(); });
 
+  // PIN kontrolü + ilçe özeti TEK istekte alınır (açılışı hızlandırır)
   async function boot(){
     if (!pin){ showLogin(); return; }
-    $('login').classList.add('hidden'); $('app').classList.remove('hidden');
-    $('caller').value = caller;
     try{
-      await loadSummary();
+      var d = await call('login');
+      summary = d.summary; renderIlceSelect();
+      LS.set('arama_pin', pin);
+      $('login').classList.add('hidden'); $('app').classList.remove('hidden');
+      $('caller').value = caller;
       var last = LS.get('arama_ilce');
       if (last && summary.some(function(s){ return s.ilce === last; })){
         $('ilce').value = last; await loadPeople(last);
       } else { renderAll(); }
     }catch(e){
       if (/PIN/.test(e.message)){ LS.set('arama_pin',''); pin=''; showLogin(e.message); }
-      else { $('list').innerHTML = '<div class="empty">Yüklenemedi: ' + esc(e.message) + '</div>'; }
+      else { pin=''; showLogin(e.message); }
     }
   }
 
@@ -291,7 +292,7 @@
 
   function renderChips(){
     var base = baseList();
-    var counts = { Yeni:0, 'Arandı':0, Tekrar:0, Olumsuz:0 };
+    var counts = { Yeni:0, 'Arandı':0, Tekrar:0, 'Yüzyüze':0, Olumsuz:0 };
     base.forEach(function(p){ counts[p.d]++; });
     var html = '<button class="chip'+(fStatus==='ALL'?' on':'')+'" data-s="ALL">Tümü <b>'+base.length+'</b></button>';
     CHIP_ORDER.forEach(function(k){
@@ -398,7 +399,7 @@
 
   function refreshSummaryFor(ilce){
     var s = summary.filter(function(x){ return x.ilce === ilce; })[0]; if (!s) return;
-    s['Yeni'] = s['Arandı'] = s['Tekrar'] = s['Olumsuz'] = 0; s.toplam = people.length;
+    s['Yeni'] = s['Arandı'] = s['Tekrar'] = s['Yüzyüze'] = s['Olumsuz'] = 0; s.toplam = people.length;
     people.forEach(function(p){ s[p.d]++; });
     renderIlceSelect();
   }
