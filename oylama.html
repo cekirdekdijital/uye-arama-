@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Oylama Takip Paneli</title>
+<style>
+  :root{
+    --green:#16a34a; --red:#dc2626; --gray:#9ca3af;
+    --brand:#c0231f; --ink:#1f2328; --dim:#6b7280; --line:#e5e7eb; --bg:#f4f5f7;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;background:var(--bg);color:var(--ink);font-size:15px}
+  .hidden{display:none!important}
+
+  .login{max-width:340px;margin:16vh auto 0;background:#fff;border:1px solid var(--line);border-radius:12px;padding:22px;text-align:center}
+  .login h1{font-size:18px;margin:0 0 4px;color:var(--brand)}
+  .login p{margin:0 0 14px;color:var(--dim);font-size:13px}
+  .login input{width:100%;padding:11px;border:1px solid var(--line);border-radius:8px;font-size:16px;margin-bottom:10px}
+  .login button{width:100%;padding:11px;border:0;border-radius:8px;background:var(--brand);color:#fff;font-size:15px;font-weight:600}
+  .login .err{color:var(--red);font-size:13px;min-height:18px;margin-top:8px;word-break:break-word;text-align:left}
+
+  .top{position:sticky;top:0;z-index:20;background:#fff;box-shadow:0 1px 0 var(--line)}
+  header{background:var(--brand);color:#fff;padding:9px 12px;display:flex;align-items:center;gap:8px}
+  header h1{font-size:15px;margin:0;flex:1;white-space:nowrap}
+  header input{width:130px;padding:6px 8px;border-radius:6px;border:0;font-size:13px}
+  header button{border:0;background:rgba(255,255,255,.18);color:#fff;border-radius:6px;padding:6px 10px;font-size:14px}
+  .controls{padding:10px 12px;display:grid;gap:8px}
+  select,.search{width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;background:#fff;font-size:14px;font-family:inherit}
+  select:disabled{background:#f3f4f6;color:#9ca3af}
+  .sum{display:flex;gap:6px;font-size:13px;color:var(--dim);flex-wrap:wrap}
+  .sum b{color:var(--ink)}
+  .bar{height:8px;border-radius:999px;background:#e5e7eb;overflow:hidden;display:flex}
+  .bar i{display:block;height:100%}
+  .chips{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px}
+  .chip{flex:0 0 auto;border:1px solid var(--line);background:#fff;border-radius:999px;padding:6px 11px;font-size:13px;display:flex;align-items:center;gap:6px;font-family:inherit}
+  .chip b{font-weight:600}
+  .chip.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+
+  .dot{display:inline-block;width:10px;height:10px;border-radius:50%;flex:0 0 auto}
+
+  #list{padding:10px 12px 80px;display:grid;gap:8px;max-width:760px;margin:0 auto}
+  .card{background:#fff;border:1px solid var(--line);border-left:6px solid var(--gray);border-radius:10px;overflow:hidden}
+  .card .head{padding:11px 12px 6px}
+  .nm{font-weight:600;font-size:15px}
+  .sub{color:var(--dim);font-size:13px;margin-top:1px}
+  .sub a{color:var(--dim)}
+  .call{display:flex;align-items:center;gap:6px;font-size:12px;color:#4b5563;margin-top:5px}
+  .notep{font-size:12px;color:#6b7280;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .vtag{display:inline-block;margin-top:6px;font-size:12px;font-weight:600;padding:2px 9px;border-radius:999px;color:#fff}
+  .vtag.g{background:var(--green)} .vtag.n{background:var(--red)}
+  .vmeta{font-size:12px;color:var(--dim);margin-left:4px}
+  .vbtns{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;padding:6px 12px 12px}
+  .vb{padding:11px 8px;border:2px solid var(--line);background:#fff;border-radius:8px;font-size:14px;font-weight:600;font-family:inherit}
+  .vb.g{color:var(--green);border-color:#bbf7d0}
+  .vb.n{color:var(--red);border-color:#fecaca}
+  .vb.g.on{background:var(--green);border-color:var(--green);color:#fff}
+  .vb.n.on{background:var(--red);border-color:var(--red);color:#fff}
+  .vb.undo{font-weight:400;color:var(--dim);font-size:12px;padding:0 8px}
+  .vb:disabled{opacity:.55}
+  .empty{text-align:center;color:var(--dim);padding:40px 10px}
+  .more{display:block;margin:6px auto 0;padding:10px 18px;border:1px solid var(--line);background:#fff;border-radius:8px;font-size:14px}
+  .toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:#111827;color:#fff;padding:10px 16px;border-radius:8px;font-size:14px;z-index:50;max-width:90%}
+</style>
+</head>
+<body>
+
+<!-- PIN GİRİŞİ -->
+<div id="login" class="login hidden">
+  <h1>Oylama Takip Paneli</h1>
+  <p>Devam etmek için size verilen PIN'i girin.</p>
+  <input id="pinInput" type="password" autocomplete="off" placeholder="PIN">
+  <button id="pinBtn">Giriş</button>
+  <div id="pinErr" class="err"></div>
+</div>
+
+<!-- UYGULAMA -->
+<div id="app" class="hidden">
+  <div class="top">
+    <header>
+      <h1>Oylama · Altınordu</h1>
+      <input id="caller" placeholder="Adınız (işaretleyen)" maxlength="40">
+      <button id="refresh" title="Yenile">⟳</button>
+    </header>
+    <div class="controls">
+      <select id="mahalle" disabled><option value="">Mahalle</option></select>
+      <input id="q" class="search" type="search" placeholder="İsim veya telefon ara…" autocomplete="off">
+      <div id="sum" class="sum"></div>
+      <div id="bar" class="bar"></div>
+      <div id="chips" class="chips"></div>
+    </div>
+  </div>
+  <div id="list"></div>
+  <button id="more" class="more hidden"></button>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+
+<script>
+(function(){
+  'use strict';
+
+  /* ===================== AYAR: Apps Script API adresiniz ===================== */
+  var API_URL = 'https://script.google.com/macros/s/AKfycbyza4710mcQeS_PHc8YnaQBnaBuKFT-xK7VtHdVjabtknpTg74hPjoWBK8sYmj5yECC/exec';
+  var ILCE = 'Altınordu';
+  /* ============================================================================ */
+
+  var LS = {
+    get: function(k){ try{ return localStorage.getItem(k) || ''; }catch(e){ return ''; } },
+    set: function(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
+  };
+
+  // Arama durumu etiketleri (arama uygulamasıyla aynı)
+  var CALL = {
+    'Yeni':    { label:'Aranmadı',            color:'#2563eb' },
+    'Arandı':  { label:'Arandı',              color:'#16a34a' },
+    'Tekrar':  { label:'Tekrar aranacak',     color:'#eab308' },
+    'Olumsuz': { label:'Ulaşılamadı / Olumsuz',color:'#dc2626' },
+    'Yüzyüze': { label:'Yüzyüze görüşüldü',   color:'#f97316' }
+  };
+  var VOTE_LABEL = { 'Geldi':'Oylamaya geldi', 'Gelmedi':'Oylamaya gelmedi', '':'İşaretlenmedi' };
+  var VOTE_COLOR = { 'Geldi':'#16a34a', 'Gelmedi':'#dc2626', '':'#9ca3af' };
+  var CHIPS = [ ['ALL','Tümü'], ['','İşaretlenmedi'], ['Geldi','Geldi'], ['Gelmedi','Gelmedi'] ];
+  var PAGE = 50;
+
+  function $(id){ return document.getElementById(id); }
+  function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+
+  var pin = LS.get('arama_pin');          // arama uygulamasıyla aynı PIN kaydı (aynı sitede)
+  var caller = LS.get('oylama_kisi') || LS.get('arama_kisi');
+  var people = [];
+  var fMah = '';
+  var fVote = 'ALL';
+  var q = '';
+  var shown = PAGE;
+  var busy = {};
+
+  function call(action){
+    var extra = Array.prototype.slice.call(arguments, 1);
+    var params = new URLSearchParams();
+    params.set('action', action);
+    params.set('pin', pin);
+    var names = { people:['ilce'], vote:['id','oy','kisi'] }[action] || [];
+    names.forEach(function(name, i){ params.set(name, extra[i] == null ? '' : extra[i]); });
+    return fetch(API_URL + '?' + params.toString(), { method:'GET' })
+      .then(function(res){
+        if (!res.ok) throw new Error('Sunucu HTTP ' + res.status + ' döndürdü');
+        return res.json().catch(function(){ throw new Error('Sunucudan beklenmeyen yanıt geldi (JSON değil)'); });
+      })
+      .then(function(j){
+        if (!j || j.ok !== true) throw new Error((j && j.error) || 'Sunucu hatası');
+        return j.data;
+      })
+      .catch(function(err){
+        if (err instanceof TypeError) throw new Error('Sunucuya ulaşılamadı. İnternet bağlantınızı kontrol edin, sorun sürerse API adresini kontrol edin.');
+        throw err;
+      });
+  }
+
+  var toastTimer = null;
+  function toast(t){
+    var el = $('toast'); el.textContent = t; el.classList.remove('hidden');
+    clearTimeout(toastTimer); toastTimer = setTimeout(function(){ el.classList.add('hidden'); }, 2600);
+  }
+
+  function digits(t){
+    var d = String(t || '').replace(/\D/g,'');
+    if (d.length === 12 && d.indexOf('90') === 0) d = d.slice(2);
+    if (d.length === 10) d = '0' + d;
+    return d;
+  }
+  function fmtPhone(t){
+    var d = digits(t);
+    if (d.length !== 11) return String(t || '');
+    return d.slice(0,4)+' '+d.slice(4,7)+' '+d.slice(7,9)+' '+d.slice(9);
+  }
+
+  /* ---------- giriş ---------- */
+  function showLogin(err){
+    $('app').classList.add('hidden'); $('login').classList.remove('hidden');
+    $('pinErr').textContent = err || '';
+    $('pinInput').value = ''; $('pinInput').focus();
+  }
+  async function doLogin(){
+    var v = $('pinInput').value.trim();
+    if (!v) return;
+    pin = v; $('pinBtn').disabled = true; $('pinBtn').textContent = 'Kontrol ediliyor…';
+    await boot();
+    $('pinBtn').disabled = false; $('pinBtn').textContent = 'Giriş';
+  }
+  $('pinBtn').addEventListener('click', doLogin);
+  $('pinInput').addEventListener('keydown', function(e){ if (e.key === 'Enter') doLogin(); });
+
+  async function boot(){
+    if (!pin){ showLogin(); return; }
+    try{
+      $('list').innerHTML = '<div class="empty">Yükleniyor…</div>';
+      people = await call('people', ILCE);
+      LS.set('arama_pin', pin);
+      $('login').classList.add('hidden'); $('app').classList.remove('hidden');
+      $('caller').value = caller;
+      buildMahalle(); renderAll();
+    }catch(e){
+      if (/PIN/.test(e.message)){ LS.set('arama_pin',''); pin=''; showLogin(e.message); }
+      else { showLogin(e.message); }
+    }
+  }
+
+  function buildMahalle(){
+    var sel = $('mahalle'), counts = {}, none = 0;
+    people.forEach(function(p){ if (p.m) counts[p.m] = (counts[p.m]||0) + 1; else none++; });
+    var names = Object.keys(counts).sort(function(a,b){ return a.localeCompare(b,'tr'); });
+    if (!names.length){ sel.innerHTML = '<option value="">Mahalle bilgisi yok</option>'; sel.disabled = true; fMah = ''; return; }
+    sel.disabled = false;
+    var html = '<option value="">Tüm mahalleler ('+people.length+')</option>' +
+      names.map(function(n){ return '<option value="'+esc(n)+'">'+esc(n)+' ('+counts[n]+')</option>'; }).join('');
+    if (none) html += '<option value="__none">Mahalle belirtilmemiş ('+none+')</option>';
+    sel.innerHTML = html;
+    if (fMah && !(fMah === '__none' ? none : counts[fMah])) fMah = '';
+    sel.value = fMah;
+  }
+
+  function baseList(){
+    var tokens = q ? q.split(/\s+/).filter(Boolean) : [];
+    var qd = q.replace(/\D/g,'');
+    if (qd.indexOf('90') === 0 && qd.length > 4) qd = qd.slice(2);
+    return people.filter(function(p){
+      if (fMah === '__none'){ if (p.m) return false; }
+      else if (fMah && p.m !== fMah) return false;
+      if (tokens.length){
+        var hay = (p.a + ' ' + p.s).toLocaleLowerCase('tr');
+        var okName = tokens.every(function(t){ return hay.indexOf(t) >= 0; });
+        var okTel = qd.length >= 3 && digits(p.t).indexOf(qd) >= 0;
+        if (!okName && !okTel) return false;
+      }
+      return true;
+    });
+  }
+
+  function renderAll(){ renderTop(); renderList(); }
+
+  function renderTop(){
+    var base = baseList(), c = { '':0, 'Geldi':0, 'Gelmedi':0 };
+    base.forEach(function(p){ c[p.o || '']++; });
+    var tot = base.length || 1, marked = c['Geldi'] + c['Gelmedi'];
+    $('sum').innerHTML = '<span>Toplam <b>'+base.length+'</b></span><span>· Geldi <b style="color:#16a34a">'+c['Geldi']+'</b></span>' +
+      '<span>· Gelmedi <b style="color:#dc2626">'+c['Gelmedi']+'</b></span><span>· Bekleyen <b>'+c['']+'</b></span>' +
+      '<span>· Geliş oranı <b>%'+Math.round(c['Geldi']*100/tot)+'</b></span>' +
+      (marked ? '<span>(işaretlenenlerde %'+Math.round(c['Geldi']*100/marked)+')</span>' : '');
+    $('bar').innerHTML = '<i style="width:'+(c['Geldi']*100/tot)+'%;background:#16a34a"></i><i style="width:'+(c['Gelmedi']*100/tot)+'%;background:#dc2626"></i>';
+    $('chips').innerHTML = CHIPS.map(function(ch){
+      var n = ch[0] === 'ALL' ? base.length : c[ch[0]];
+      var col = ch[0] === 'ALL' ? '' : '<i class="dot" style="background:'+VOTE_COLOR[ch[0]]+'"></i>';
+      return '<button class="chip'+(fVote===ch[0]?' on':'')+'" data-v="'+esc(ch[0])+'">'+col+esc(ch[1])+' <b>'+n+'</b></button>';
+    }).join('');
+  }
+
+  function visible(){
+    return baseList().filter(function(p){ return fVote === 'ALL' || (p.o || '') === fVote; });
+  }
+
+  function cardHtml(p){
+    var v = p.o || '', cs = CALL[p.d] || CALL['Yeni'], dis = busy[p.id] ? ' disabled' : '';
+    var callLine = '<div class="call"><i class="dot" style="background:'+cs.color+'"></i>'+
+      '<span>Arama: '+esc(cs.label)+(p.z?' · '+esc(p.z):'')+(p.k?' · '+esc(p.k):'')+'</span></div>';
+    var notep = p.n ? '<div class="notep">📝 '+esc(p.n)+'</div>' : '';
+    var vtag = v ? '<div><span class="vtag '+(v==='Geldi'?'g':'n')+'">'+esc(VOTE_LABEL[v])+'</span>'+
+      '<span class="vmeta">'+(p.oz?esc(p.oz):'')+(p.ok?' · '+esc(p.ok):'')+'</span></div>' : '';
+    return '<div class="card" data-id="'+esc(p.id)+'" style="border-left-color:'+VOTE_COLOR[v]+'">' +
+      '<div class="head"><div class="nm">'+esc(p.a)+' '+esc(p.s)+'</div>' +
+      '<div class="sub"><a href="tel:'+esc(digits(p.t))+'">📞 '+esc(fmtPhone(p.t))+'</a>'+(p.m?' · '+esc(p.m):'')+'</div>' +
+      callLine + notep + vtag + '</div>' +
+      '<div class="vbtns">' +
+        '<button type="button" class="vb g'+(v==='Geldi'?' on':'')+'" data-vote="Geldi"'+dis+'>✔ Oylamaya geldi</button>' +
+        '<button type="button" class="vb n'+(v==='Gelmedi'?' on':'')+'" data-vote="Gelmedi"'+dis+'>✖ Oylamaya gelmedi</button>' +
+        (v ? '<button type="button" class="vb undo" data-vote=""'+dis+'>Geri al</button>' : '<span></span>') +
+      '</div></div>';
+  }
+
+  function renderList(){
+    var list = $('list'), more = $('more'), vis = visible();
+    if (!vis.length){ list.innerHTML = '<div class="empty">Bu görünümde kimse yok.</div>'; more.classList.add('hidden'); return; }
+    list.innerHTML = vis.slice(0, shown).map(cardHtml).join('');
+    if (vis.length > shown){
+      more.textContent = 'Daha fazla göster (' + (vis.length - shown) + ' kişi daha)';
+      more.classList.remove('hidden');
+    } else more.classList.add('hidden');
+  }
+
+  /* ---------- olaylar ---------- */
+  $('mahalle').addEventListener('change', function(e){ fMah = e.target.value; shown = PAGE; renderAll(); });
+  $('chips').addEventListener('click', function(e){
+    var b = e.target.closest('.chip'); if (!b) return;
+    fVote = b.dataset.v; shown = PAGE; renderAll();
+  });
+  var qTimer = null;
+  $('q').addEventListener('input', function(e){
+    clearTimeout(qTimer);
+    qTimer = setTimeout(function(){ q = e.target.value.trim().toLocaleLowerCase('tr'); shown = PAGE; renderAll(); }, 150);
+  });
+  $('more').addEventListener('click', function(){ shown += PAGE; renderList(); });
+  $('caller').addEventListener('input', function(e){ caller = e.target.value.trim(); LS.set('oylama_kisi', caller); });
+  $('refresh').addEventListener('click', async function(){
+    try{ people = await call('people', ILCE); buildMahalle(); renderAll(); toast('Yenilendi'); }
+    catch(e){ toast('Yenilenemedi: ' + e.message); }
+  });
+
+  $('list').addEventListener('click', function(e){
+    var b = e.target.closest('[data-vote]'); if (!b) return;
+    var card = b.closest('.card'); if (!card) return;
+    setVote(card.dataset.id, b.dataset.vote);
+  });
+
+  async function setVote(id, oy){
+    var p = people.filter(function(x){ return x.id === id; })[0]; if (!p || busy[id]) return;
+    if (oy && !caller){ toast('Önce üstteki kutuya adınızı yazın'); $('caller').focus(); return; }
+    if (oy && p.o === oy) { return; }
+    busy[id] = true; renderList();
+    try{
+      var r = await call('vote', id, oy, caller);
+      p.o = r.o; p.oz = r.oz; p.ok = r.ok;
+      toast(oy ? (p.a + ' ' + p.s + ': ' + VOTE_LABEL[oy] + ' ✓') : 'İşaret geri alındı');
+    }catch(err){
+      toast('Kaydedilemedi: ' + err.message);
+    }
+    delete busy[id];
+    renderAll();
+  }
+
+  (async function start(){
+    if (!API_URL || API_URL.indexOf('BURAYA') >= 0){ showLogin('Kod içinde API_URL ayarlanmamış.'); return; }
+    if (pin){ $('login').classList.add('hidden'); await boot(); } else showLogin();
+  })();
+})();
+</script>
+</body>
+</html>
